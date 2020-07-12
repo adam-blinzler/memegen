@@ -1,6 +1,10 @@
 memegen is a program to add text to an image set. If you have a series of images and then recombine then you have a meme gif.  
 All movie manipulation is expected to be done seperately in a program like ffmpeg
   
+# Requirements  
+  python3.x  
+  python packages: pillow  
+  
 # Usage  
     > python memegen.py path/to/config/file
  Optional  
