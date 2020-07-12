@@ -1,0 +1,33 @@
+Get frames from gif
+--------------------
+You chould use ffmpeg but if your gif is comrpessed with transparent frames there will be issues. For this reason the gifextract tool is provided.
+
+Get frame from movie file
+--------------------
+typical command
+	ffmpeg -i video.mp4 -r 6 save/path/%02d.png
+if using webm file
+	ffmpeg -vcodec libvpx -i video.webm -r 6 save/path/%02d.png
+ffmpeg explained
+	-r <int>   | this is the number of frames per second you want to extract from the video stream
+	%02d       | filename has 0 padded integer of 2 digits, might need 3 or 4 depending on how long your video is
+
+Combine frames to gif
+---------------------
+The simpliest way to have build a gif is to have all the frames in a single folder.
+They should have the same filename structure with some padded incrimenting integer.
+Use ffmpeg command example
+	ffmpeg -framerate 7 -y -i path/to/frames/filename%02d.png output.gif
+ffmpeg command explained
+	-framerate <integer>  | integer in units frames per second
+	-y		      | overwrite exiting output.gif
+	-i path               | path should be full path to folder with all frames
+	%02d                  | filename has 0 padded integer of 2 digits
+	png                   | incoming file extension, can change if jpg or other
+
+Combine multiple gifs
+---------------------
+The simpliest way is to make a file with each line being a different file to combine with this structure
+	file 'path/to/file.gif'
+Then use the ffmpeg command with example file cat_gifs.txt
+	ffmpeg  -f concat -safe 0 -i cat_gifs.txt output.gif

@@ -1,0 +1,7 @@
+Some of the tasks that could be implimented.
+
+- Add ability to change font, size, colors from config file
+- Make a class
+- Add header parsing so the user can stipulate column definition to config file
+- make gifextract CLI
+- add threading
