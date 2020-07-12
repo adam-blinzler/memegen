@@ -8,6 +8,7 @@ import argparse
 #requires install of pillow
 from PIL import Image, ImageDraw, ImageFont
 
+csv_delim = ';'
 delim_default = '-'
 indent = "    "
 image_types = ['png', 'PNG','jpg', 'JPG','jpeg', 'JPEG']
@@ -82,7 +83,7 @@ def add_text(path, frame_configs, file_delim):
 
 def add_frame_config(frame_configs, line):
     # dissector for fames in config file
-    cols = line.split(';')
+    cols = line.split(csv_delim)
     if not int(cols[0]) in frame_configs:
         frame_configs.update( { int(cols[0]) : [ { 'text' : cols[1], 'x' :  int(cols[2]), 'y' : int(cols[3])} ] } )
     else:
@@ -93,21 +94,22 @@ def frame_config_reader(lines):
     # dissector for config file
     path = False
     frame_configs = dict()
+
     for line in lines:
         if line[0] == "#":
             pass
         elif ":path" in line[0:5]:
-            path = line.split(';')[1]
+            path = line.split(csv_delim)[1]
             if not os.path.isdir(path):
                 print("Path in config file is not valide : " + path )
                 path = False
         else:
-            cols = line.split(';')
+            cols = line.split(csv_delim)
             if '-' in cols[0]:
                 for i in range(int(cols[0].split('-')[0]),int(cols[0].split('-')[1])+1):
                     temp_line = [str(i)]
                     temp_line.extend(cols[1:])
-                    frame_configs = add_frame_config(frame_configs,';'.join(temp_line))
+                    frame_configs = add_frame_config(frame_configs,csv_delim.join(temp_line))
             else:
                 frame_configs = add_frame_config(frame_configs, line)  
     
@@ -122,6 +124,13 @@ def get_frame_configs(config_file):
         frame_configs = dict()
         with open(config_file, 'r') as f:
             f_lines = f.readlines()
+        global csv_delim
+        if not csv_delim in f_lines[0]:
+            if ',' in f_lines[0]:
+                csv_delim = ','
+            else:
+                print("Could not determine the delimitation of csv file. Use only ; or ,")
+                return False, False
         path, frame_configs = frame_config_reader(f_lines)
     if path:
         return path, frame_configs
