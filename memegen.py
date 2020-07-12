@@ -1,4 +1,3 @@
-# Original work created by Adam Blinzler
 # Notes:
 #          All images in processing folder need to be of 1 type ( png, jpg, or jpeg )
 
