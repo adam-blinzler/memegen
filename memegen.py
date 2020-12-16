@@ -12,25 +12,42 @@ csv_delim = ';'
 delim_default = '-'
 indent = "    "
 image_types = ['png', 'PNG','jpg', 'JPG','jpeg', 'JPEG']
+font_size_default = 44
 
-def draw_on_image(i, new_frame, frame_configs, font_name = 'arial.ttf', font_size = 44, color = 'white', shadowcolor = 'black'):
-    draw_frame = ImageDraw.Draw(new_frame) 
-    font = ImageFont.truetype(font_name, size=font_size)
-    # Loop through multiple writes on the same frame
-    for config in frame_configs:
-        x = config['x']
-        y = config['y']
-        message = config['text']
-         # thin border ( add +- to other coord for thick )
-        draw_frame.text((x-1, y), message, font=font, fill=shadowcolor)
-        draw_frame.text((x+1, y), message, font=font, fill=shadowcolor)
-        draw_frame.text((x, y-1), message, font=font, fill=shadowcolor)
-        draw_frame.text((x, y+1), message, font=font, fill=shadowcolor)
-        # draw the message on the background
-        draw_frame.text((x, y), message,  font=font, fill=color)
+##############################################
+class frame_type:
+    def __init__(self, f_number):
+        self.frame_number = f_number
+        self.font_name = 'arial.ttf'
+        self.color = 'white'
+        self.shadowcolor = 'black'
+        self.actions = list()
+        return
 
-    return new_frame
+    def add_action(self,text,x,y,font_size):
+        self.actions.append({ 'text' : text, 'x' :  int(x), 'y' : int(y), 'font_size' : int(font_size)})
+        return
 
+    def draw_on_image(self, new_frame):
+        draw_frame = ImageDraw.Draw(new_frame)
+
+        # Loop through multiple writes on the same frame
+        for config in self.actions:
+            font = ImageFont.truetype(self.font_name, size=config['font_size'])
+            x = config['x']
+            y = config['y']
+            message = config['text']
+             # thin border ( add +- to other coord for thick )
+            draw_frame.text((x-1, y), message, font=font, fill=self.shadowcolor)
+            draw_frame.text((x+1, y), message, font=font, fill=self.shadowcolor)
+            draw_frame.text((x, y-1), message, font=font, fill=self.shadowcolor)
+            draw_frame.text((x, y+1), message, font=font, fill=self.shadowcolor)
+            # draw the message on the background
+            draw_frame.text((x, y), message,  font=font, fill=self.color)
+
+        return new_frame
+
+###########################################
 def make_working_folder(files):
     working_folder = os.path.join(os.path.split(files[0])[0],"memegen")
     base_folder = working_folder
@@ -40,7 +57,7 @@ def make_working_folder(files):
         working_folder = base_folder + '_' + str(i)
         i += 1
     os.mkdir(working_folder)
-    
+
     print("Making working copy of images ...")
     print(indent + working_folder)
     for file in files:
@@ -72,8 +89,11 @@ def add_text(path, frame_configs, file_delim):
 
                 if i in frame_configs:
                     frame = Image.open(file)
-                    frame = draw_on_image(i, frame, frame_configs[i])
-                    frame.save(file, os.path.splitext(file)[1][1:])
+                    frame = frame_configs[i].draw_on_image(frame)
+                    img_type = os.path.splitext(file)[1][1:]
+                    if img_type == 'jpg':
+                        img_type = 'jpeg'
+                    frame.save(file, img_type)
                     print(indent + file)
         else:
             print("No files in working directory.")
@@ -81,61 +101,88 @@ def add_text(path, frame_configs, file_delim):
         print("No files found of any type : " ', '.join(image_types))
     return
 
-def add_frame_config(frame_configs, line):
+def add_frame_config(frame_configs, line, font_size):
     # dissector for fames in config file
     cols = line.split(csv_delim)
-    if not int(cols[0]) in frame_configs:
-        frame_configs.update( { int(cols[0]) : [ { 'text' : cols[1], 'x' :  int(cols[2]), 'y' : int(cols[3])} ] } )
-    else:
-        frame_configs[int(cols[0])].append({ 'text' : cols[1], 'x' :  int(cols[2]), 'y' : int(cols[3])})
+    if cols[0]:
+        if len(cols) > 5:
+            font_size = cols[4]
+
+        if not int(cols[0]) in frame_configs:
+            frame_configs.update( { int(cols[0]) : frame_type(int(cols[0])) })
+
+        frame_configs[int(cols[0])].add_action(cols[1],cols[2], cols[3],font_size)
+
     return frame_configs
+
+def get_path(lines):
+    for line in lines:
+        if ":path" in line[0:5]:
+            path = line.split(csv_delim)[1]
+            if os.path.isdir(path):
+                print("Path found",path)
+                return path
+            else:
+                print("Path in config file is not valid : " + path )
+    return False
+
+def get_font_size(lines):
+    font_size = font_size_default
+    for line in lines:
+        if ":font_size" in line:
+            font_size = int(line.split(csv_delim)[1])
+    return font_size
 
 def frame_config_reader(lines):
     # dissector for config file
-    path = False
-    frame_configs = dict()
+    path = get_path(lines)
 
-    for line in lines:
-        if line[0] == "#":
-            pass
-        elif ":path" in line[0:5]:
-            path = line.split(csv_delim)[1]
-            if not os.path.isdir(path):
-                print("Path in config file is not valide : " + path )
-                path = False
-        else:
-            cols = line.split(csv_delim)
-            if '-' in cols[0]:
-                for i in range(int(cols[0].split('-')[0]),int(cols[0].split('-')[1])+1):
-                    temp_line = [str(i)]
-                    temp_line.extend(cols[1:])
-                    frame_configs = add_frame_config(frame_configs,csv_delim.join(temp_line))
+    if path:
+        font_size = get_font_size(lines)
+
+        frame_configs = dict()
+
+        for line in lines:
+            if line[0] in ['#',':']:
+                pass
             else:
-                frame_configs = add_frame_config(frame_configs, line)  
-    
-    return path, frame_configs
+                cols = line.split(csv_delim)
+                if '-' in cols[0]:
+                    for i in range(int(cols[0].split('-')[0]),int(cols[0].split('-')[1])+1):
+                        temp_line = [str(i)]
+                        temp_line.extend(cols[1:])
+                        frame_configs = add_frame_config(frame_configs,csv_delim.join(temp_line), font_size)
+                else:
+                    frame_configs = add_frame_config(frame_configs, line,font_size)
 
+        return path, frame_configs
+    else:
+        return False, dict()
+
+def set_delim(line):
+    global csv_delim
+    if not csv_delim in line:
+        if ',' in line:
+            csv_delim = ','
+            return True
+        else:
+            print("Could not determine the delimitation of csv file. Use only ; or ,")
+            return False
+    return True
+    
 def get_frame_configs(config_file):
     # read config file
     if os.path.isfile(config_file):
         print("Using Text Config file ...")
         print(indent + config_file)
-        
-        frame_configs = dict()
+
         with open(config_file, 'r') as f:
             f_lines = f.readlines()
-        global csv_delim
-        if not csv_delim in f_lines[0]:
-            if ',' in f_lines[0]:
-                csv_delim = ','
-            else:
-                print("Could not determine the delimitation of csv file. Use only ; or ,")
-                return False, False
-        path, frame_configs = frame_config_reader(f_lines)
-    if path:
-        return path, frame_configs
-    else:
-        return False, False
+
+        if set_delim(f_lines[0]):
+            return frame_config_reader(f_lines)
+
+    return False, dict()
 
 def memegen(config_path, file_delim = delim_default):
     # main function for memegen
@@ -144,12 +191,24 @@ def memegen(config_path, file_delim = delim_default):
         add_text(path,frame_configs, file_delim)
     return
 
+def is_ascii(file_path):
+    with open(file_path) as f:
+        header = f.readlines()[0]
+
+    try:
+        header.encode().decode('ascii')
+    except UnicodeDecodeError:
+        print("ERROR - File is not ascii ANSI formated.")
+        return False
+
+    return True
+
 def args():
     parser = argparse.ArgumentParser(description="Add text to a series of images.")
     parser.add_argument('config_path', nargs='?', help='The path to the input configuration file')
     parser.add_argument('-d', '--delim', type=str, help='Use if frames have a deliminator before frame numbers')
-    args = parser.parse_args()    
-    
+    args = parser.parse_args()
+
     if args.delim:
         if len(args.d) == 1:
             file_delim = args.d
@@ -157,7 +216,8 @@ def args():
         file_delim = delim_default
     if args.config_path:
         if os.path.isfile(args.config_path):
-            return args.config_path, file_delim
+            if is_ascii(args.config_path):
+                return args.config_path, file_delim
 
     print("Invalid configuration file path.\n")
     parser.print_help()
@@ -165,8 +225,8 @@ def args():
 
 """ ------
    MAIN
-""" 
+"""
 if __name__ == "__main__":
     memegen(*args())
-    
+
     print("Script Finished")
