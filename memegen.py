@@ -223,9 +223,9 @@ def args():
     parser.print_help()
     return False, None
 
-""" ------
-   MAIN
-"""
+############
+#   MAIN
+############
 if __name__ == "__main__":
     memegen(*args())
 
