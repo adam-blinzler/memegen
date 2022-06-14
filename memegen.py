@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # Notes:
 #          All images in processing folder need to be of 1 type ( png, jpg, or jpeg )
 
@@ -5,10 +6,12 @@ import os
 import glob
 import shutil
 import argparse
+from sys import platform
+
 #requires install of pillow
 from PIL import Image, ImageDraw, ImageFont
 
-csv_delim = ';'
+csv_delim = ','
 delim_default = '-'
 indent = "    "
 image_types = ['png', 'PNG','jpg', 'JPG','jpeg', 'JPEG']
@@ -18,7 +21,10 @@ font_size_default = 44
 class frame_type:
     def __init__(self, f_number):
         self.frame_number = f_number
-        self.font_name = 'arial.ttf'
+        if platform == "win32":
+            self.font_name = 'arial.ttf'
+        else:
+            self.font_name = "/usr/share/fonts/truetype/freeefont/FreeSans.ttf"
         self.color = 'white'
         self.shadowcolor = 'black'
         self.actions = list()
@@ -69,7 +75,7 @@ def get_files(path):
     # Collect all images files in path
     # No check for if they are numbered
     for file_type in image_types:
-        files = glob.glob(path + '\*.' + file_type)
+        files = glob.glob(path + '/*.' + file_type)
         if len(files) > 0:
             return files
     return False
@@ -98,7 +104,7 @@ def add_text(path, frame_configs, file_delim):
         else:
             print("No files in working directory.")
     else:
-        print("No files found of any type : " ', '.join(image_types))
+        print("No files found of any type : {}".format(', '.join(image_types)))
     return
 
 def add_frame_config(frame_configs, line, font_size):
@@ -118,7 +124,7 @@ def add_frame_config(frame_configs, line, font_size):
 def get_path(lines):
     for line in lines:
         if ":path" in line[0:5]:
-            path = line.split(csv_delim)[1]
+            path = line.split(csv_delim)[1].strip()
             if os.path.isdir(path):
                 print("Path found",path)
                 return path
@@ -133,6 +139,19 @@ def get_font_size(lines):
             font_size = int(line.split(csv_delim)[1])
     return font_size
 
+def get_moving_points(definition, start, stop):
+    if '>' in definition:
+        p_start = int(definition.split('>')[0])
+        p_stop = int(definition.split('>')[1])
+
+        points = [str(p_start)]
+        for n in range(1,stop-start+1):
+            points.append(str( p_start + n*int((p_stop-p_start) / (stop-start)) ))
+    else:
+        points = [str(definition)]*((stop-start)+1)
+
+    return points
+
 def frame_config_reader(lines):
     # dissector for config file
     path = get_path(lines)
@@ -143,16 +162,38 @@ def frame_config_reader(lines):
         frame_configs = dict()
 
         for line in lines:
-            if line[0] in ['#',':']:
+            if not line.strip():
+                # blank line
+                pass
+            elif line[0] in ['#',':']:
+                # comment or settings line
                 pass
             else:
-                cols = line.split(csv_delim)
+                cols = line.strip().split(csv_delim)
                 if '-' in cols[0]:
-                    for i in range(int(cols[0].split('-')[0]),int(cols[0].split('-')[1])+1):
-                        temp_line = [str(i)]
-                        temp_line.extend(cols[1:])
-                        frame_configs = add_frame_config(frame_configs,csv_delim.join(temp_line), font_size)
+                    start = int(cols[0].split('-')[0])
+                    stop = int(cols[0].split('-')[1])
+                    if '>' in cols[2] or '>' in cols[3]:
+                        # moving text across multiple frames
+                        x_points = get_moving_points(cols[2],start,stop)
+                        y_points = get_moving_points(cols[3],start,stop)
+
+                        for i,x,y in zip(list(range(start,stop+1)),
+                                        get_moving_points(cols[2],start,stop),
+                                        get_moving_points(cols[3],start,stop)):
+                            temp_line = [str(i)]
+                            temp_line.append(cols[1])
+                            temp_line.append(x)
+                            temp_line.append(y)
+                            frame_configs = add_frame_config(frame_configs,csv_delim.join(temp_line), font_size)
+                    else:
+                        # static text on multiple frames
+                        for i in range(start,stop+1):
+                            temp_line = [str(i)]
+                            temp_line.extend(cols[1:])
+                            frame_configs = add_frame_config(frame_configs,csv_delim.join(temp_line), font_size)
                 else:
+                    # text on single frame
                     frame_configs = add_frame_config(frame_configs, line,font_size)
 
         return path, frame_configs
@@ -162,14 +203,14 @@ def frame_config_reader(lines):
 def set_delim(line):
     global csv_delim
     if not csv_delim in line:
-        if ',' in line:
-            csv_delim = ','
+        if ';' in line:
+            csv_delim = ';'
             return True
         else:
             print("Could not determine the delimitation of csv file. Use only ; or ,")
             return False
     return True
-    
+
 def get_frame_configs(config_file):
     # read config file
     if os.path.isfile(config_file):
@@ -223,9 +264,9 @@ def args():
     parser.print_help()
     return False, None
 
-############
-#   MAIN
-############
+""" ------
+   MAIN
+"""
 if __name__ == "__main__":
     memegen(*args())
 
