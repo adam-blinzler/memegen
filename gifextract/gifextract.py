@@ -1,4 +1,8 @@
+#!/usr/bin/env python
+
+
 import os
+import sys
 from PIL import Image
 
 def analyseImage(path):
@@ -47,9 +51,8 @@ def processImage(path):
         '''            If the GIF uses local colour tables, each frame will have its own palette.
         If not, we need to apply the global palette to the new frame.
         '''
-        if not im.getpalette():
+        if not im.getpalette() and im.mode in ("L", "LA", "P", "PA"):
             im.putpalette(p)
-        
         new_frame = Image.new('RGBA', im.size)
         
         '''
@@ -72,7 +75,11 @@ def processImage(path):
 
 
 def main():
-    processImage(R'..\example\ex.gif')
+
+    try:
+        processImage(sys.argv[1])
+    except IndexError:
+        processImage(os.path.join(os.path.dirname(__file__),"../example/ex.gif"))
     
 
 if __name__ == "__main__":
