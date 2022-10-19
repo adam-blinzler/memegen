@@ -5,6 +5,30 @@ import os
 import sys
 from PIL import Image
 
+
+'''
+I searched high and low for solutions to the "extract animated GIF frames in Python"
+problem, and after much trial and error came up with the following solution based
+on several partial examples around the web (mostly Stack Overflow).
+
+There are two pitfalls that aren't often mentioned when dealing with animated GIFs -
+firstly that some files feature per-frame local palettes while some have one global
+palette for all frames, and secondly that some GIFs replace the entire image with
+each new frame ('full' mode in the code below), and some only update a specific
+region ('partial').
+
+This code deals with both those cases by examining the palette and redraw
+instructions of each frame. In the latter case this requires a preliminary (usually
+partial) iteration of the frames before processing, since the redraw mode needs to
+be consistently applied across all frames. I found a couple of examples of
+partial-mode GIFs containing the occasional full-frame redraw, which would result
+in bad renders of those frames if the mode assessment was only done on a
+single-frame basis.
+
+Nov 2012
+'''
+
+
 def analyseImage(path):
     '''
     Pre-process pass over the image to determine the mode (full or additive).
